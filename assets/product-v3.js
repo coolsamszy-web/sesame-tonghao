@@ -1,6 +1,29 @@
 /* 芝麻同好 V3：真人兴趣版资讯平台（静态交互原型） */
 const v3Platforms=['小红书','B站','微博','官方资讯','豆瓣'];
 let v3RankCategory=state.interests[0]||'动漫';
+let v3IpDraft=[],v3IpQuery='',v3IpLetter='全部';
+state.customIps=state.customIps&&typeof state.customIps==='object'?state.customIps:{};
+const v3IpCatalog={
+  '潮玩':[['A','A BATHING APE'],['B','BE@RBRICK'],['B','Bunny'],['C','CRYBABY'],['D','DIMOO'],['F','FARMER BOB'],['H','HIRONO小野'],['K','KAWS'],['L','LABUBU'],['L','Lilios'],['M','MOLLY'],['N','Nyota'],['P','PUCKY'],['S','SKULLPANDA'],['S','Sonny Angel'],['S','Sweet Bean'],['T','THE MONSTERS'],['T','TOKIDOKI'],['Z','ZIMOMO'],['Z','卓大王']],
+  '游戏':[['A','艾尔登法环'],['B','崩坏：星穹铁道'],['C','刺客信条'],['D','动物森友会'],['F','风之旅人'],['G','怪物猎人'],['H','黑神话：悟空'],['J','绝区零'],['K','空洞骑士'],['M','Minecraft'],['N','逆水寒'],['P','帕鲁'],['S','塞尔达传说'],['S','赛博朋克2077'],['S','双人成行'],['W','王者荣耀'],['W','巫师3'],['Y','原神'],['Z','最终幻想'],['Z','只狼']],
+  '动漫':[['A','ALICE与藏六'],['B','宝可梦'],['D','胆大党'],['F','葬送的芙莉莲'],['G','鬼灭之刃'],['H','海贼王'],['H','火影忍者'],['J','进击的巨人'],['J','间谍过家家'],['J','咒术回战'],['L','蓝色监狱'],['L','龙珠'],['M','名侦探柯南'],['Q','轻音少女'],['S','四月是你的谎言'],['W','我推的孩子'],['X','新世纪福音战士'],['Y','药屋少女的呢喃'],['Z','紫罗兰永恒花园'],['Z','灼眼的夏娜']],
+  '漫画':[['A','阿衰'],['B','镖人'],['B','不安之书'],['D','电锯人'],['D','灌篮高手'],['F','非人哉'],['G','孤独摇滚'],['G','鬼灭之刃'],['H','海贼王'],['J','间谍过家家'],['J','进击的巨人'],['J','咒术回战'],['L','浪客行'],['L','蓝色时期'],['M','迷宫饭'],['N','女神降临'],['P','排球少年'],['S','深夜食堂'],['Y','一人之下'],['Z','昨日的美食']],
+  '电影':[['A','爱乐之城'],['B','霸王别姬'],['D','盗梦空间'],['D','大话西游'],['F','飞屋环游记'],['H','花样年华'],['H','海上钢琴师'],['J','机器人总动员'],['J','寄生虫'],['L','绿皮书'],['M','末代皇帝'],['P','怦然心动'],['Q','千与千寻'],['R','让子弹飞'],['S','沙丘'],['T','泰坦尼克号'],['W','完美的日子'],['X','星际穿越'],['Y','宇宙探索编辑部'],['Z','这个杀手不太冷']],
+  '电视剧':[['A','爱情公寓'],['C','沉默的真相'],['F','繁花'],['H','黑暗荣耀'],['H','后翼弃兵'],['K','狂飙'],['L','琅琊榜'],['M','漫长的季节'],['P','破产姐妹'],['Q','庆余年'],['Q','去有风的地方'],['R','人世间'],['S','山花烂漫时'],['W','我的阿勒泰'],['W','武林外传'],['X','想见你'],['Y','隐秘的角落'],['Y','鱿鱼游戏'],['Z','甄嬛传'],['Z','重启人生']],
+  '书籍':[['A','埃隆·马斯克传'],['B','百年孤独'],['C','长安的荔枝'],['D','当下的力量'],['F','房思琪的初恋乐园'],['H','活着'],['J','局外人'],['K','克拉拉与太阳'],['M','蛤蟆先生去看心理医生'],['N','挪威的森林'],['P','平凡的世界'],['R','人类简史'],['S','三体'],['S','始于极限'],['W','我与地坛'],['X','悉达多'],['Y','也许你该找个人聊聊'],['Y','月亮与六便士'],['Z','置身事内'],['Z','追风筝的人']]
+};
+
+function v3IpItems(categoryName){
+  const builtIn=(v3IpCatalog[categoryName]||[]).map(([initial,name])=>({initial,name,custom:false}));
+  const custom=(state.customIps[categoryName]||[]).map(name=>({initial:'自定义',name,custom:true}));
+  return [...builtIn,...custom];
+}
+
+function v3IpWall(){
+  const all=v3IpItems(interestFocus),letters=['全部',...new Set(all.map(item=>item.initial))];
+  const shown=all.filter(item=>(v3IpLetter==='全部'||item.initial===v3IpLetter)&&(!v3IpQuery||item.name.toLowerCase().includes(v3IpQuery.toLowerCase())));
+  return `<section class="ip-wall"><div class="ip-wall-head"><div><span>${esc(interestFocus)} · IP 墙</span><strong>${all.length} 个 IP</strong></div><label>${icon('search')}<input id="ip-search" value="${esc(v3IpQuery)}" placeholder="搜索 ${esc(interestFocus)} IP"></label></div><div class="ip-letters">${letters.map(letter=>`<button class="${v3IpLetter===letter?'active':''}" data-ip-letter="${letter}">${letter}</button>`).join('')}</div><div class="ip-cloud">${shown.map(item=>`<button class="${v3IpDraft.includes(item.name)?'active':''}" data-ip="${esc(item.name)}"><span>${esc(item.name)}</span>${item.custom?'<small>自定义</small>':''}</button>`).join('')||'<p>没有找到，试试主动添加这个 IP。</p>'}</div><div class="ip-maintain"><input id="custom-ip" maxlength="30" placeholder="没有找到？添加一个 IP"><button data-action="add-custom-ip">+ 添加</button></div><small class="ip-note">IP 墙包含平台内置条目与你主动维护的条目；新增内容仅保存在当前设备。</small></section>`;
+}
 
 communityCatalog.forEach((item,index)=>{
   const categoryOffset=Math.max(0,categories.indexOf(item.category));
@@ -24,7 +47,7 @@ reason=function(x){
   if(keyword)return `命中关键词「${keyword}」 · ${x.platform||'公开资讯'}`;
   if(state.interests.includes(x.category))return `匹配你的「${x.category}」兴趣 · ${x.platform||'公开资讯'}`;
   const g=geo(person(x.person));
-  return `${g===2?'附近同好正在关注':'同号人气上升'} · ${x.platform||'公开资讯'}`;
+  return `${g===2?'附近同好正在关注':'同好人气上升'} · ${x.platform||'公开资讯'}`;
 };
 
 feedData=function(){
@@ -73,7 +96,7 @@ function v3Rankings(){
   const rankList=items=>`<div class="rank-list">${items.map((x,i)=>`<button class="rank-item" data-detail="${x.id}"><span class="rank-no">${i+1}</span><span><strong>${esc(x.title)}</strong><small>${esc(x.object)} · ${esc(x.platform||'同好动态')}</small></span><span class="rank-rise">${i<2?'热度上升':'NEW'}</span></button>`).join('')}</div>`;
   return `<section class="ranking-board" aria-label="兴趣榜单">
     <article class="rank-panel nearby-rank"><span class="rank-kicker">NEARBY NOW</span><h2>${esc(state.place)} · 附近热点榜</h2><p>看看附近的人正在关注什么，找到今天的线下谈资。</p>${rankList(nearbyItems)}</article>
-    <article class="rank-panel"><span class="rank-kicker">SAME INTEREST</span><h2>垂类同号榜</h2><p>不追全网总热度，只看与你同频的领域。</p><div class="vertical-switch">${categories.map(c=>`<button class="${v3RankCategory===c?'active':''}" data-rank-category="${c}">${c}</button>`).join('')}</div>${rankList(verticalItems)}</article>
+    <article class="rank-panel"><span class="rank-kicker">SAME INTEREST</span><h2>垂类同好榜</h2><p>不追全网总热度，只看与你同频的领域。</p><div class="vertical-switch">${categories.map(c=>`<button class="${v3RankCategory===c?'active':''}" data-rank-category="${c}">${c}</button>`).join('')}</div>${rankList(verticalItems)}</article>
   </section>`;
 }
 
@@ -83,7 +106,7 @@ profilePanel=function(){
 
 nearbyPanel=function(){
   const ps=people.filter(p=>geo(p)>0).sort((a,b)=>geo(b)-geo(a));
-  return `<div class="aside-card nearby-panel"><div class="between"><h3>附近兴趣脉冲</h3><button class="text-btn" data-action="map">看看谁在关注 ${icon('arrow')}</button></div><div class="mini-map" aria-label="附近兴趣热度示意图"><span class="map-area">${esc(state.place)} · 热度示意</span>${(ps.length?ps:people.slice(0,2)).slice(0,3).map((p,i)=>`<button style="left:${18+i*26}%;top:${42+(i%2)*24}%" data-person="${p.id}" aria-label="查看${p.name}"><span class="avatar">${p.letter}</span><small>${p.category}</small></button>`).join('')}</div><p class="muted" style="font-size:11px;margin-top:10px">从公开资讯的兴趣热度出发，再发现真实同号人。</p></div>`;
+  return `<div class="aside-card nearby-panel"><div class="between"><h3>附近兴趣脉冲</h3><button class="text-btn" data-action="map">看看谁在关注 ${icon('arrow')}</button></div><div class="mini-map" aria-label="附近兴趣热度示意图"><span class="map-area">${esc(state.place)} · 热度示意</span>${(ps.length?ps:people.slice(0,2)).slice(0,3).map((p,i)=>`<button style="left:${18+i*26}%;top:${42+(i%2)*24}%" data-person="${p.id}" aria-label="查看${p.name}"><span class="avatar">${p.letter}</span><small>${p.category}</small></button>`).join('')}</div><p class="muted" style="font-size:11px;margin-top:10px">从公开资讯的兴趣热度出发，再发现真实同好人。</p></div>`;
 };
 
 square=function(){
@@ -93,12 +116,12 @@ square=function(){
 };
 
 following=function(){
-  return `<div class="page-title between"><div><h1>关注这些人，也关注他们的标签</h1><p>AI 持续围绕被关注用户的标签搜索公开内容。</p></div><button class="secondary" data-action="discover">发现同号人</button></div><div class="main-grid"><section><div class="following-strip">${state.following.length?state.following.map(id=>{const p=person(id);return `<button data-person="${id}"><span class="avatar">${p.letter}</span><span>${p.name}</span></button>`}).join(''):'<span class="muted">先从一位品味相投的人开始关注</span>'}</div>${chips()}${v3SourceFilters()}<p class="sample-note"><span class="demo-dot"></span>这里展示 AI 根据你关注用户的标签找到的公开内容，不是他们发布的帖子</p><div class="feed-grid">${visibleFeed().map(card).join('')||empty(state.following.length?'这个兴趣下暂时没有更新':'还没有关注同号人',state.following.length?'切换其他分类或资讯来源。':'关注后，AI 会围绕他的标签持续寻找内容。')}</div>${moreButton()}${!state.following.length?`<div class="aside-card" style="margin-top:18px"><h3>可以先认识这些同号人</h3>${peopleList(people.slice(0,9))}</div>`:''}</section><aside>${profilePanel()}${nearbyPanel()}</aside></div>`;
+  return `<div class="page-title between"><div><h1>关注这些人，也关注他们的标签</h1><p>AI 持续围绕被关注用户的标签搜索公开内容。</p></div><button class="secondary" data-action="discover">发现同好人</button></div><div class="main-grid"><section><div class="following-strip">${state.following.length?state.following.map(id=>{const p=person(id);return `<button data-person="${id}"><span class="avatar">${p.letter}</span><span>${p.name}</span></button>`}).join(''):'<span class="muted">先从一位品味相投的人开始关注</span>'}</div>${chips()}${v3SourceFilters()}<p class="sample-note"><span class="demo-dot"></span>这里展示 AI 根据你关注用户的标签找到的公开内容，不是他们发布的帖子</p><div class="feed-grid">${visibleFeed().map(card).join('')||empty(state.following.length?'这个兴趣下暂时没有更新':'还没有关注同好人',state.following.length?'切换其他分类或资讯来源。':'关注后，AI 会围绕他的标签持续寻找内容。')}</div>${moreButton()}${!state.following.length?`<div class="aside-card" style="margin-top:18px"><h3>可以先认识这些同好人</h3>${peopleList(people.slice(0,9))}</div>`:''}</section><aside>${profilePanel()}${nearbyPanel()}</aside></div>`;
 };
 
 mine=function(){
   const p=person('me'),saved=allContent().filter(x=>x.person!=='me'&&state.saved.includes(x.id));
-  return `<div class="page-title between"><div><h1>我的兴趣雷达</h1><p>管理标签、关键词、关注和收藏，让 AI 搜得越来越准。</p></div><button class="text-btn" data-action="preferences">调整兴趣 ${icon('arrow')}</button></div><div class="main-grid"><section><div class="profile-top"><div class="row"><span class="avatar">${p.letter}</span><span>${esc(p.name)}</span><span class="level">标签拥有者</span></div><h2>${esc(p.identity)}</h2><p>${esc(p.bio)||'你关注的作品、角色、系列和创作者，会共同组成你的资讯雷达。'}</p><div class="interest-tags">${state.interests.map(x=>`<span>${esc(x)}</span>`).join('')}</div>${state.keywords.length?`<div class="keyword-tags">${state.keywords.map(x=>`<span># ${esc(x)}</span>`).join('')}</div>`:''}<div class="profile-counts"><span><b>${state.interests.length+state.keywords.length}</b> 标签</span><span><b>${state.following.length}</b> 关注</span><span><b>${state.saved.length}</b> 收藏</span></div><button class="secondary" data-action="preferences">编辑标签与关键词</button></div><div class="between section-head"><h2>收藏的 AI 搜索结果</h2></div><div class="feed-grid">${saved.map(card).join('')||empty('还没有收藏','在广场收藏一条 AI 找到的内容，之后可以从这里继续看。')}</div></section><aside><div class="aside-card"><h3>兴趣称号</h3><div class="badges"><div class="badge">${icon('star')}<strong>兴趣探索者</strong><small>已点亮</small></div><div class="badge ${state.saved.length?'':'locked'}">${icon('book')}<strong>资讯收藏家</strong><small>${state.saved.length?'已点亮':'收藏 1 条'}</small></div><div class="badge ${state.following.length?'':'locked'}">${icon('crown')}<strong>同号发现者</strong><small>${state.following.length?'已点亮':'关注 1 人'}</small></div></div><p class="model-note">称号只记录兴趣参与，不代表专业或信用认证。</p></div>${nearbyPanel()}<div class="aside-card"><h3>内容说明</h3><p class="muted" style="margin-top:10px">页面内容均为 AI 根据用户标签搜索整理的公开内容，不是用户发布的帖子。评论暂不开放。</p></div></aside></div>`;
+  return `<div class="page-title between"><div><h1>我的兴趣雷达</h1><p>管理标签、关键词、关注和收藏，让 AI 搜得越来越准。</p></div><button class="text-btn" data-action="preferences">调整兴趣 ${icon('arrow')}</button></div><div class="main-grid"><section><div class="profile-top"><div class="row"><span class="avatar">${p.letter}</span><span>${esc(p.name)}</span><span class="level">标签拥有者</span></div><h2>${esc(p.identity)}</h2><p>${esc(p.bio)||'你关注的作品、角色、系列和创作者，会共同组成你的资讯雷达。'}</p><div class="interest-tags">${state.interests.map(x=>`<span>${esc(x)}</span>`).join('')}</div>${state.keywords.length?`<div class="keyword-tags">${state.keywords.map(x=>`<span># ${esc(x)}</span>`).join('')}</div>`:''}<div class="profile-counts"><span><b>${state.interests.length+state.keywords.length}</b> 标签</span><span><b>${state.following.length}</b> 关注</span><span><b>${state.saved.length}</b> 收藏</span></div><button class="secondary" data-action="preferences">编辑标签与关键词</button></div><div class="between section-head"><h2>收藏的 AI 搜索结果</h2></div><div class="feed-grid">${saved.map(card).join('')||empty('还没有收藏','在广场收藏一条 AI 找到的内容，之后可以从这里继续看。')}</div></section><aside><div class="aside-card"><h3>兴趣称号</h3><div class="badges"><div class="badge">${icon('star')}<strong>兴趣探索者</strong><small>已点亮</small></div><div class="badge ${state.saved.length?'':'locked'}">${icon('book')}<strong>资讯收藏家</strong><small>${state.saved.length?'已点亮':'收藏 1 条'}</small></div><div class="badge ${state.following.length?'':'locked'}">${icon('crown')}<strong>同好发现者</strong><small>${state.following.length?'已点亮':'关注 1 人'}</small></div></div><p class="model-note">称号只记录兴趣参与，不代表专业或信用认证。</p></div>${nearbyPanel()}<div class="aside-card"><h3>内容说明</h3><p class="muted" style="margin-top:10px">页面内容均为 AI 根据用户标签搜索整理的公开内容，不是用户发布的帖子。评论暂不开放。</p></div></aside></div>`;
 };
 
 showPerson=function(id){
@@ -109,17 +132,17 @@ showPerson=function(id){
 
 interestPreview=function(){
   const selected=interestDraft.includes(interestFocus),w=interestWorlds[interestFocus];
-  return `<div class="interest-reveal"><span class="reveal-kicker">${selected?'AI 将持续扫描':'你是否也好奇'}</span><h3>${w.question}</h3><p>${w.detail}</p></div><label class="keyword-field"><span>再具体一点，推荐会更懂你</span><input id="interest-keywords" maxlength="100" value="${esc(state.keywords.join('、'))}" placeholder="作品、角色、系列、游戏或创作者，例如：芙莉莲、LABUBU"></label><div class="interest-selection" aria-live="polite"><span>${interestDraft.length?'已选择 '+interestDraft.length+' 个方向':'先选择一个兴趣方向'}</span><span>${interestDraft.length?interestDraft.join(' · '):'可多选，随时能改'}</span></div><button class="interest-enter" data-action="v3-apply-interests" ${interestDraft.length?'':'disabled'}>${interestDraft.length?'开启 AI 兴趣雷达':'先选择一个兴趣'} ${icon('arrow')}</button><small class="interest-disclosure">基础浏览不设信用分门槛 · 原型模拟公开资讯聚合</small>`;
+  return `<div class="interest-reveal"><span class="reveal-kicker">${selected?'继续选择具体 IP':'你是否也好奇'}</span><h3>${w.question}</h3><p>${w.detail}</p></div>${v3IpWall()}<div class="interest-selection" aria-live="polite"><span>${interestDraft.length?'已选择 '+interestDraft.length+' 个垂类':'先选择一个兴趣垂类'}</span><span>${v3IpDraft.length?'已选择 '+v3IpDraft.length+' 个 IP':'可多选 IP，推荐会更准确'}</span></div><button class="interest-enter" data-action="v3-apply-interests" ${interestDraft.length?'':'disabled'}>${interestDraft.length?'用这些标签开启 AI 雷达':'先选择一个兴趣'} ${icon('arrow')}</button><small class="interest-disclosure">基础浏览不设信用分门槛 · IP 可搜索、按首字母检索并主动维护</small>`;
 };
 
 preferences=function(onboard=false){
-  interestOnboard=onboard;interestDraft=onboard?[]:[...state.interests];interestFocus=interestDraft[0]||'潮玩';
-  modal('开启你的 AI 兴趣雷达',`<div class="interest-heading"><span class="interest-overline">真人兴趣版资讯平台</span><h2>你说喜欢什么，<br>AI 就替你去全网寻找。</h2><p>选择领域，再补充具体作品、角色或创作者。</p></div><div class="interest-constellation" role="group" aria-label="选择兴趣，可多选">${categories.map((t,i)=>`<button class="interest-orb orb-${i} ${interestDraft.includes(t)?'active':''}" data-interest="${t}" aria-pressed="${interestDraft.includes(t)}"><span class="orb-mark">${icon(interestWorlds[t].icon)}</span><strong>${t}</strong><span class="orb-hint">${interestWorlds[t].hint}</span><span class="orb-check">${icon('check')}</span></button>`).join('')}</div><label class="interest-place">${icon('pin')}<span>附近榜所在街区</span><select id="interest-place" aria-label="附近榜所在街区">${['杭州 · 滨江','杭州 · 西湖','上海 · 徐汇'].map(t=>`<option ${t===state.place?'selected':''}>${t}</option>`).join('')}</select></label><div id="interest-feedback">${interestPreview()}</div>`);
+  interestOnboard=onboard;interestDraft=onboard?[]:[...state.interests];interestFocus=interestDraft[0]||'潮玩';v3IpDraft=onboard?[]:[...state.keywords];v3IpQuery='';v3IpLetter='全部';
+  modal('开启你的 AI 兴趣雷达',`<div class="interest-heading"><span class="interest-overline">垂类标签 → 具体 IP</span><h2>先选领域，<br>再点亮你真正喜欢的 IP。</h2><p>每个垂类都有完整 IP 墙，也可以添加你没找到的条目。</p></div><div class="interest-constellation" role="group" aria-label="选择兴趣，可多选">${categories.map((t,i)=>`<button class="interest-orb orb-${i} ${interestDraft.includes(t)?'active':''}" data-interest="${t}" aria-pressed="${interestDraft.includes(t)}"><span class="orb-mark">${icon(interestWorlds[t].icon)}</span><strong>${t}</strong><span class="orb-hint">${interestWorlds[t].hint}</span><span class="orb-check">${icon('check')}</span></button>`).join('')}</div><label class="interest-place">${icon('pin')}<span>附近榜所在街区</span><select id="interest-place" aria-label="附近榜所在街区">${['杭州 · 滨江','杭州 · 西湖','上海 · 徐汇'].map(t=>`<option ${t===state.place?'selected':''}>${t}</option>`).join('')}</select></label><div id="interest-feedback">${interestPreview()}</div>`);
   $('#modal').classList.add('interest-modal');
 };
 
 function v3CuriosityIntro(){
-  modal('你最想偷看附近的哪件事？',`<div class="curiosity-intro"><span class="interest-overline">先从一个好奇心开始</span><h2>如果现在能看见，<br>你最想知道哪一件？</h2><p>选一个问题，再告诉 AI 你具体喜欢什么。</p><div class="curiosity-grid"><button class="curiosity-card" data-curiosity="动漫">${icon('film')}<strong>附近的人最近都在追什么番？</strong><small>看看同街区的新番热度</small></button><button class="curiosity-card" data-curiosity="游戏">${icon('grid')}<strong>本街区谁也在玩同一款游戏？</strong><small>从作品找到同号人</small></button><button class="curiosity-card" data-curiosity="潮玩">${icon('star')}<strong>周围的人都在收什么新手办？</strong><small>发现附近收藏风向</small></button><button class="curiosity-card" data-curiosity="电影">${icon('heart')}<strong>同好刚把什么内容顶上榜？</strong><small>只看同频圈层的热度</small></button></div><div class="curiosity-foot">无需信用分 · 选择后可继续细化标签</div></div>`);
+  modal('你最想偷看附近的哪件事？',`<div class="curiosity-intro"><span class="interest-overline">先从一个好奇心开始</span><h2>如果现在能看见，<br>你最想知道哪一件？</h2><p>选一个问题，再告诉 AI 你具体喜欢什么。</p><div class="curiosity-grid"><button class="curiosity-card" data-curiosity="动漫">${icon('film')}<strong>附近的人最近都在追什么番？</strong><small>看看同街区的新番热度</small></button><button class="curiosity-card" data-curiosity="游戏">${icon('grid')}<strong>本街区谁也在玩同一款游戏？</strong><small>从作品找到同好人</small></button><button class="curiosity-card" data-curiosity="潮玩">${icon('star')}<strong>周围的人都在收什么新手办？</strong><small>发现附近收藏风向</small></button><button class="curiosity-card" data-curiosity="电影">${icon('heart')}<strong>同好刚把什么内容顶上榜？</strong><small>只看同频圈层的热度</small></button></div><div class="curiosity-foot">无需信用分 · 选择后可继续细化标签</div></div>`);
 }
 
 function v3AiScan(){
@@ -136,13 +159,28 @@ document.addEventListener('click',event=>{
   }
   if(data.source){state.sourceFilter=data.source;saveState();feedLimit=20;render();return;}
   if(data.rankCategory){v3RankCategory=data.rankCategory;render();return;}
+  if(data.interest){v3IpQuery='';v3IpLetter='全部';const host=$('#interest-feedback');if(host)host.innerHTML=interestPreview();return;}
+  if(data.ipLetter){v3IpLetter=data.ipLetter;const host=$('#interest-feedback');if(host)host.innerHTML=interestPreview();return;}
+  if(data.ip){v3IpDraft=v3IpDraft.includes(data.ip)?v3IpDraft.filter(ip=>ip!==data.ip):[...v3IpDraft,data.ip];const host=$('#interest-feedback');if(host)host.innerHTML=interestPreview();return;}
+  if(data.action==='add-custom-ip'){
+    const value=String($('#custom-ip')?.value||'').trim();if(!value){toast('先输入要添加的 IP 名称');return;}
+    const list=state.customIps[interestFocus]||[];if(!list.includes(value)&&!v3IpItems(interestFocus).some(item=>item.name===value))state.customIps[interestFocus]=[...list,value];
+    if(!v3IpDraft.includes(value))v3IpDraft.push(value);saveState();v3IpLetter='全部';v3IpQuery='';$('#interest-feedback').innerHTML=interestPreview();toast(`已添加「${value}」`);return;
+  }
   if(data.like&&$('#modal').open){window.setTimeout(()=>detail(data.like),0);return;}
   if(data.action==='v3-apply-interests'){
     if(!interestDraft.length){toast('至少选择一个兴趣方向');return;}
-    const input=$('#interest-keywords');
-    const keywords=String(input?.value||'').split(/[,，、;；\n]+/).map(s=>s.trim()).filter(Boolean).slice(0,8);
+    const keywords=[...new Set(v3IpDraft)].slice(0,30);
     state.interests=[...interestDraft];state.keywords=keywords;state.place=$('#interest-place')?.value||state.place;state.onboarded=true;state.productV3Onboarded=true;state.sourceFilter='全部来源';v3RankCategory=state.interests[0];saveState();feedLimit=20;v3AiScan();
   }
+});
+
+document.addEventListener('input',event=>{
+  if(event.target?.id!=='ip-search')return;
+  v3IpQuery=event.target.value;v3IpLetter='全部';
+  const wall=event.target.closest('.ip-wall');if(!wall)return;
+  const next=document.createElement('div');next.innerHTML=v3IpWall();wall.replaceWith(next.firstElementChild);
+  const input=$('#ip-search');if(input){input.focus();input.setSelectionRange(input.value.length,input.value.length);}
 });
 
 render();
