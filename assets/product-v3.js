@@ -1,5 +1,7 @@
 /* 芝麻同好 V3：真人兴趣版资讯平台（静态交互原型） */
 const v3Platforms=['小红书','B站','微博','官方资讯','豆瓣'];
+if(!state.glassDesignSeen){state.theme='glass';state.glassDesignSeen=true;saveState();}
+themeSwitch=function(){return `<div class="theme-switch" role="group" aria-label="界面风格">${[['glass','雾白'],['luxury','黑金'],['pop','二次元']].map(([id,label])=>`<button class="${state.theme===id?'active':''}" data-theme="${id}" aria-pressed="${state.theme===id}">${label}</button>`).join('')}</div>`;};
 let v3RankCategory=state.interests[0]||'动漫';
 let v3IpDraft=[],v3IpQuery='',v3IpLetter='全部';
 state.customIps=state.customIps&&typeof state.customIps==='object'?state.customIps:{};
