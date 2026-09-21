@@ -25,6 +25,45 @@ function v3IpWall(){
   return `<section class="ip-wall"><div class="ip-wall-head"><div><span>${esc(interestFocus)} · IP 墙</span><strong>${all.length} 个 IP</strong></div><label>${icon('search')}<input id="ip-search" value="${esc(v3IpQuery)}" placeholder="搜索 ${esc(interestFocus)} IP"></label></div><div class="ip-letters">${letters.map(letter=>`<button class="${v3IpLetter===letter?'active':''}" data-ip-letter="${letter}">${letter}</button>`).join('')}</div><div class="ip-cloud">${shown.map(item=>`<button class="${v3IpDraft.includes(item.name)?'active':''}" data-ip="${esc(item.name)}"><span>${esc(item.name)}</span>${item.custom?'<small>自定义</small>':''}</button>`).join('')||'<p>没有找到，试试主动添加这个 IP。</p>'}</div><div class="ip-maintain"><input id="custom-ip" maxlength="30" placeholder="没有找到？添加一个 IP"><button data-action="add-custom-ip">+ 添加</button></div><small class="ip-note">IP 墙包含平台内置条目与你主动维护的条目；新增内容仅保存在当前设备。</small></section>`;
 }
 
+state.nearbyScope=['街道','区县','市','省'].includes(state.nearbyScope)?state.nearbyScope:'街道';
+const v3BaseModal=modal;
+modal=function(title,body){v3BaseModal(title,body);$('#modal').classList.remove('rank-sheet');};
+
+function v3AreaNames(){
+  const table={
+    '杭州 · 滨江':{街道:'长河街道',区县:'滨江区',市:'杭州市',省:'浙江省'},
+    '杭州 · 西湖':{街道:'古荡街道',区县:'西湖区',市:'杭州市',省:'浙江省'},
+    '上海 · 徐汇':{街道:'徐家汇街道',区县:'徐汇区',市:'上海市',省:'上海市'}
+  };
+  return table[state.place]||{街道:'当前街道',区县:'当前区县',市:state.place.split(' · ')[0]+'市',省:'当前省份'};
+}
+
+function v3NearbyRankItems(scope=state.nearbyScope){
+  const currentCity=state.place.split(' · ')[0];
+  return [...allContent()].filter(x=>{
+    if(x.person==='me')return false;const place=person(x.person).place||'';
+    if(scope==='街道'||scope==='区县')return place===state.place;
+    if(scope==='市')return place.split(' · ')[0]===currentCity;
+    return true;
+  }).sort((a,b)=>(b.likes+score(b))-(a.likes+score(a)));
+}
+
+function v3VerticalRankItems(categoryName=v3RankCategory){
+  return [...allContent()].filter(x=>x.person!=='me'&&x.category===categoryName).sort((a,b)=>(b.likes+b.quality)-(a.likes+a.quality));
+}
+
+function v3SheetRows(items){
+  return items.slice(0,20).map((x,index)=>`<button class="rank-sheet-item" data-detail="${x.id}"><span class="rank-sheet-no">${String(index+1).padStart(2,'0')}</span>${x.images?.[0]?`<img src="${x.images[0]}" alt="" loading="lazy">`:''}<span><strong>${esc(x.title)}</strong><small>${esc(x.object)} · ${esc(x.platform||'公开资讯')} · 来自${esc(person(x.person).name)}的标签</small></span>${icon('arrow')}</button>`).join('');
+}
+
+function v3OpenRankSheet(type){
+  const nearby=type==='nearby',areas=v3AreaNames();
+  const items=nearby?v3NearbyRankItems():v3VerticalRankItems();
+  const controls=nearby?`<div class="rank-sheet-controls">${['街道','区县','市','省'].map(scope=>`<button class="${state.nearbyScope===scope?'active':''}" data-nearby-scope="${scope}">${scope}<small>${areas[scope]}</small></button>`).join('')}</div>`:`<div class="rank-sheet-controls category-controls">${categories.map(c=>`<button class="${v3RankCategory===c?'active':''}" data-sheet-category="${c}">${c}</button>`).join('')}</div>`;
+  modal(nearby?'附近热点榜':'垂类同好榜',`<div class="rank-sheet-intro"><span>${nearby?esc(areas[state.nearbyScope]):esc(v3RankCategory)}</span><p>${nearby?'切换地理范围，查看不同距离内大家正在关注的内容。':'切换一级分类，查看该垂类当前热度最高的内容。'}</p></div>${controls}<div class="rank-sheet-scroll">${v3SheetRows(items)}</div><p class="model-note">榜单、位置及热度为产品原型演示；列表支持上下滑动。</p>`);
+  $('#modal').classList.add('rank-sheet');
+}
+
 communityCatalog.forEach((item,index)=>{
   const categoryOffset=Math.max(0,categories.indexOf(item.category));
   item.platform=v3Platforms[(index+categoryOffset)%v3Platforms.length];
@@ -40,6 +79,12 @@ nav=function(){
   document.querySelectorAll('.place').forEach(el=>el.textContent=state.place);
   $('#side-status').textContent='兴趣雷达已开启';
   applyTheme();
+};
+
+chips=function(){
+  const selected=[...new Set(state.interests)].filter(c=>categories.includes(c));
+  if(category!=='全部'&&!selected.includes(category))category='全部';
+  return `<div class="filters categories selected-categories">${['全部',...selected].map(c=>`<button class="chip ${category===c?'active':''}" data-category="${c}" aria-pressed="${category===c}">${c}</button>`).join('')}</div>`;
 };
 
 reason=function(x){
@@ -90,13 +135,13 @@ function v3SourceFilters(){
 }
 
 function v3Rankings(){
-  const nearbyItems=[...allContent()].filter(x=>x.person!=='me'&&geo(person(x.person))>0).sort((a,b)=>(b.likes+score(b))-(a.likes+score(a))).slice(0,5);
+  const areas=v3AreaNames(),nearbyItems=v3NearbyRankItems().slice(0,5);
   if(!categories.includes(v3RankCategory))v3RankCategory=state.interests[0]||'动漫';
-  const verticalItems=[...allContent()].filter(x=>x.person!=='me'&&x.category===v3RankCategory).sort((a,b)=>(b.likes+b.quality)-(a.likes+a.quality)).slice(0,5);
+  const verticalItems=v3VerticalRankItems().slice(0,5);
   const rankList=items=>`<div class="rank-list">${items.map((x,i)=>`<button class="rank-item" data-detail="${x.id}"><span class="rank-no">${i+1}</span><span><strong>${esc(x.title)}</strong><small>${esc(x.object)} · ${esc(x.platform||'同好动态')}</small></span><span class="rank-rise">${i<2?'热度上升':'NEW'}</span></button>`).join('')}</div>`;
   return `<section class="ranking-board" aria-label="兴趣榜单">
-    <article class="rank-panel nearby-rank"><span class="rank-kicker">NEARBY NOW</span><h2>${esc(state.place)} · 附近热点榜</h2><p>看看附近的人正在关注什么，找到今天的线下谈资。</p>${rankList(nearbyItems)}</article>
-    <article class="rank-panel"><span class="rank-kicker">SAME INTEREST</span><h2>垂类同好榜</h2><p>不追全网总热度，只看与你同频的领域。</p><div class="vertical-switch">${categories.map(c=>`<button class="${v3RankCategory===c?'active':''}" data-rank-category="${c}">${c}</button>`).join('')}</div>${rankList(verticalItems)}</article>
+    <article class="rank-panel nearby-rank"><div class="rank-panel-head"><div><span class="rank-kicker">NEARBY NOW</span><h2>${esc(areas[state.nearbyScope])} · 附近热点榜</h2></div><button class="rank-expand" data-rank-open="nearby">${state.nearbyScope} · 展开</button></div><p>可切换街道、区县、市、省，查看附近正在关注什么。</p>${rankList(nearbyItems)}</article>
+    <article class="rank-panel"><div class="rank-panel-head"><div><span class="rank-kicker">SAME INTEREST</span><h2>${esc(v3RankCategory)} · 垂类同好榜</h2></div><button class="rank-expand" data-rank-open="vertical">更换分类 · 展开</button></div><p>进入完整榜单，可切换书籍、潮玩、游戏等一级分类。</p>${rankList(verticalItems)}</article>
   </section>`;
 }
 
@@ -110,7 +155,7 @@ nearbyPanel=function(){
 };
 
 square=function(){
-  return `<section class="home-brief-row"><div class="interest-dock"><div class="interest-dock-head"><span><i class="radar-dot"></i>我的兴趣标签</span><button data-action="preferences">+ 添加 / 调整</button></div><div class="interest-quick-tags">${state.interests.map(t=>`<button data-action="preferences">${esc(t)}</button>`).join('')}${state.keywords.slice(0,3).map(t=>`<button data-action="preferences"># ${esc(t)}</button>`).join('')}</div><small>AI 正按这些标签搜索公开内容</small></div><aside class="ai-mini-card"><span>AI 兴趣雷达</span><strong>全网资讯，<br>只推你真正关心的</strong><small>${state.place} · 运行中</small></aside></section>
+  return `<section class="home-brief-row"><div class="interest-dock"><div class="interest-dock-head"><span><i class="radar-dot"></i>我的兴趣标签</span><button data-action="preferences">+ 添加 / 调整</button></div><div class="interest-quick-tags">${state.interests.map(t=>`<button data-action="preferences">${esc(t)}</button>`).join('')}${state.keywords.map(t=>`<button data-action="preferences"># ${esc(t)}</button>`).join('')}</div><small>仅展示已选择标签 · AI 正按这些标签搜索公开内容</small></div><aside class="ai-mini-card"><span>AI 兴趣雷达</span><strong>全网资讯，<br>只推你真正关心的</strong><small>${state.place} · 运行中</small></aside></section>
   ${v3Rankings()}
   <div class="main-grid"><section><div class="between section-head feed-section-head"><h2>AI 为你找到的内容</h2><span class="feed-count">基于 ${state.interests.length+state.keywords.length} 个标签</span></div>${chips()}${v3SourceFilters()}<div class="feed-tools"><button class="near-toggle ${nearby?'active':''}" data-action="nearby" aria-pressed="${nearby}">${icon('pin')} ${nearby?'仅看本街区标签':'兴趣 × 地缘推荐'}</button></div><p class="sample-note"><span class="demo-dot"></span>每条内容均由 AI 根据某位用户的标签从公开来源搜索整理，并非该用户发布</p>${query?`<div class="search-result">搜索“${esc(query)}”<button data-action="clear-search">清除</button></div>`:''}<div class="feed-grid">${visibleFeed().map(card).join('')||empty('暂时没有匹配资讯','换一个来源、兴趣或关键词再试试。')}</div>${moreButton()}</section><aside>${profilePanel()}${nearbyPanel()}<div class="aside-card"><h3>兴趣相投的人</h3><p class="muted" style="margin:8px 0 12px">关注一个人的标签，持续看到 AI 围绕其兴趣找到的内容。</p>${peopleList(people.filter(p=>state.interests.includes(p.category)).slice(0,3))}</div></aside></div>`;
 };
@@ -159,6 +204,9 @@ document.addEventListener('click',event=>{
   }
   if(data.source){state.sourceFilter=data.source;saveState();feedLimit=20;render();return;}
   if(data.rankCategory){v3RankCategory=data.rankCategory;render();return;}
+  if(data.rankOpen){v3OpenRankSheet(data.rankOpen);return;}
+  if(data.nearbyScope){state.nearbyScope=data.nearbyScope;saveState();render();v3OpenRankSheet('nearby');return;}
+  if(data.sheetCategory){v3RankCategory=data.sheetCategory;render();v3OpenRankSheet('vertical');return;}
   if(data.interest){v3IpQuery='';v3IpLetter='全部';const host=$('#interest-feedback');if(host)host.innerHTML=interestPreview();return;}
   if(data.ipLetter){v3IpLetter=data.ipLetter;const host=$('#interest-feedback');if(host)host.innerHTML=interestPreview();return;}
   if(data.ip){v3IpDraft=v3IpDraft.includes(data.ip)?v3IpDraft.filter(ip=>ip!==data.ip):[...v3IpDraft,data.ip];const host=$('#interest-feedback');if(host)host.innerHTML=interestPreview();return;}
