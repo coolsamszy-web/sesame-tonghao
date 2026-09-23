@@ -40,29 +40,29 @@ function v3AreaNames(){
   return table[state.place]||{街道:'当前街道',区县:'当前区县',市:state.place.split(' · ')[0]+'市',省:'当前省份'};
 }
 
-function v3NearbyRankItems(scope=state.nearbyScope){
-  const currentCity=state.place.split(' · ')[0];
-  return [...allContent()].filter(x=>{
-    if(x.person==='me')return false;const place=person(x.person).place||'';
-    if(scope==='街道'||scope==='区县')return place===state.place;
-    if(scope==='市')return place.split(' · ')[0]===currentCity;
-    return true;
-  }).sort((a,b)=>(b.likes+score(b))-(a.likes+score(a)));
+function v3TagRanks(categoryName,scope){
+  const groups=new Map(),city=state.place.split(' · ')[0];
+  people.filter(p=>!categoryName||p.category===categoryName).filter(p=>!scope||scope==='省'||(scope==='市'?(p.place||'').split(' · ')[0]===city:p.place===state.place)).forEach(p=>{
+    [...new Set(p.objects||[])].forEach(tag=>{if(!groups.has(tag))groups.set(tag,{tag,category:p.category,followers:new Set()});groups.get(tag).followers.add(p.id);});
+  });
+  for(const x of groups.values()){if(state.keywords.includes(x.tag))x.followers.add('me');}
+  return [...groups.values()].map(x=>({...x,count:x.followers.size})).sort((a,b)=>b.count-a.count||a.tag.localeCompare(b.tag,'zh-CN'));
 }
-
-function v3VerticalRankItems(categoryName=v3RankCategory){
-  return [...allContent()].filter(x=>x.person!=='me'&&x.category===categoryName).sort((a,b)=>(b.likes+b.quality)-(a.likes+a.quality));
-}
-
+function v3NearbyRankItems(scope=state.nearbyScope){return v3TagRanks(null,scope);}
+function v3VerticalRankItems(categoryName=v3RankCategory){return v3TagRanks(categoryName);}
 function v3SheetRows(items){
-  return items.slice(0,20).map((x,index)=>`<button class="rank-sheet-item" data-detail="${x.id}"><span class="rank-sheet-no">${String(index+1).padStart(2,'0')}</span>${x.images?.[0]?`<img src="${x.images[0]}" alt="" loading="lazy">`:''}<span><strong>${esc(x.title)}</strong><small>${esc(x.object)} · ${esc(x.platform||'公开资讯')} · 来自${esc(person(x.person).name)}的标签</small></span>${icon('arrow')}</button>`).join('');
+  return items.map((x,index)=>`<button class="rank-sheet-item tag-sheet-item" data-ranked-tag="${esc(x.tag)}"><span class="rank-sheet-no">${String(index+1).padStart(2,'0')}</span><span><strong>${esc(x.tag)}</strong><small>${esc(x.category)}</small></span><span class="tag-followers">${x.count} 人关注</span>${icon('arrow')}</button>`).join('')||'<p class="muted">这里还没有标签，换个范围看看。</p>';
+}
+function v3ShowRankedTag(tag){
+  const items=allContent().filter(x=>x.object===tag||(x.title+' '+x.body).includes(tag));
+  modal('# '+tag,`<div class="tag-detail-head"><p>看看你身边有哪些跟你一样喜欢${esc(tag)}的同好</p><button class="primary" data-follow-tag="${esc(tag)}">${state.keywords.includes(tag)?'已关注 · 取消关注':'+ 关注标签'}</button></div><div class="feed-grid">${items.map(card).join('')||empty('这个标签还没有新内容','可以先关注，有相关内容时再来看看。')}</div>`);
 }
 
 function v3OpenRankSheet(type){
   const nearby=type==='nearby',areas=v3AreaNames();
   const items=nearby?v3NearbyRankItems():v3VerticalRankItems();
   const controls=nearby?`<div class="rank-sheet-controls">${['街道','区县','市','省'].map(scope=>`<button class="${state.nearbyScope===scope?'active':''}" data-nearby-scope="${scope}">${scope}<small>${areas[scope]}</small></button>`).join('')}</div>`:`<div class="rank-sheet-controls category-controls">${categories.map(c=>`<button class="${v3RankCategory===c?'active':''}" data-sheet-category="${c}">${c}</button>`).join('')}</div>`;
-  modal(nearby?'附近热点榜':'垂类同好榜',`<div class="rank-sheet-intro"><span>${nearby?esc(areas[state.nearbyScope]):esc(v3RankCategory)}</span><p>${nearby?'切换地理范围，查看不同距离内大家正在关注的内容。':'切换一级分类，查看该垂类当前热度最高的内容。'}</p></div>${controls}<div class="rank-sheet-scroll">${v3SheetRows(items)}</div><p class="model-note">榜单、位置及热度为产品原型演示；列表支持上下滑动。</p>`);
+  modal(nearby?'附近标签热榜':'分类标签热榜',`<div class="rank-sheet-intro"><span>${nearby?esc(areas[state.nearbyScope]):esc(v3RankCategory)}</span><p>${nearby?'看看附近的人喜欢什么。':'找到这个分类里大家共同关注的标签。'}</p></div>${controls}<div class="rank-sheet-scroll">${v3SheetRows(items)}</div><p class="model-note">关注人数来自原型示例用户，按用户去重统计；非实时数据。</p>`);
   $('#modal').classList.add('rank-sheet');
 }
 
@@ -91,7 +91,7 @@ nav=function(){
     $(selector).innerHTML=ns.map(([id,i,t])=>`<button class="${selector==='.side-nav'?'nav-item ':''}${page===id?'active':''}" data-page="${id}" ${page===id?'aria-current="page"':''}>${icon(i)}<span>${t}</span></button>`).join('');
   }
   document.querySelectorAll('.place').forEach(el=>el.textContent=state.place);
-  $('#side-status').textContent='兴趣雷达已开启';
+  $('#side-status').textContent='发现身边的同好';
   applyTheme();
 };
 
@@ -173,29 +173,24 @@ function v3SourceFilters(){
 }
 
 function v3Rankings(){
-  const areas=v3AreaNames(),nearbyItems=v3NearbyRankItems().slice(0,5);
-  if(!categories.includes(v3RankCategory))v3RankCategory=state.interests[0]||'动漫';
-  const verticalItems=v3VerticalRankItems().slice(0,5);
-  const rankList=items=>`<div class="rank-list">${items.map((x,i)=>`<button class="rank-item" data-detail="${x.id}"><span class="rank-no">${i+1}</span><span><strong>${esc(x.title)}</strong><small>${esc(x.object)} · ${esc(x.platform||'同好动态')}</small></span><span class="rank-rise">${i<2?'热度上升':'NEW'}</span></button>`).join('')}</div>`;
-  return `<section class="ranking-board" aria-label="兴趣榜单">
-    <article class="rank-panel nearby-rank"><div class="rank-panel-head"><div><span class="rank-kicker">NEARBY NOW</span><h2>${esc(areas[state.nearbyScope])} · 附近热点榜</h2></div><button class="rank-expand" data-rank-open="nearby">${state.nearbyScope} · 展开</button></div><p>可切换街道、区县、市、省，查看附近正在关注什么。</p>${rankList(nearbyItems)}</article>
-    <article class="rank-panel"><div class="rank-panel-head"><div><span class="rank-kicker">SAME INTEREST</span><h2>${esc(v3RankCategory)} · 垂类同好榜</h2></div><button class="rank-expand" data-rank-open="vertical">更换分类 · 展开</button></div><p>进入完整榜单，可切换书籍、潮玩、游戏等一级分类。</p>${rankList(verticalItems)}</article>
-  </section>`;
+  const areas=v3AreaNames();
+  const rankList=items=>`<div class="rank-list">${items.slice(0,3).map((x,i)=>`<button class="rank-item" data-ranked-tag="${esc(x.tag)}"><span class="rank-no">${String(i+1).padStart(2,'0')}</span><strong>${esc(x.tag)}</strong><span class="tag-followers">${x.count} 人关注</span></button>`).join('')||'<p class="muted">暂无标签</p>'}</div>`;
+  return `<section class="ranking-board" aria-label="标签热榜"><article class="rank-panel nearby-rank"><div class="rank-panel-head"><h2>附近标签热榜</h2><button class="rank-expand" data-rank-open="nearby" aria-label="展开附近标签热榜">${icon('arrow')}</button></div><p>${esc(areas[state.nearbyScope])}</p>${rankList(v3NearbyRankItems())}</article><article class="rank-panel"><div class="rank-panel-head"><h2>分类标签热榜</h2><button class="rank-expand" data-rank-open="vertical" aria-label="展开分类标签热榜">${icon('arrow')}</button></div><p>${esc(v3RankCategory)}</p>${rankList(v3VerticalRankItems())}</article></section>`;
 }
 
 profilePanel=function(){
-  return `<div class="aside-card member"><div class="member-top">我的兴趣雷达</div><div class="member-mark">∞</div><h3>${state.profile?esc(state.profile.identity):'AI 正在替你盯全网'}</h3><p>兴趣越具体，聚合到的公开资讯越贴近你。</p><div class="interest-tags">${state.interests.map(t=>`<span>${esc(t)}</span>`).join('')}</div>${state.keywords.length?`<div class="keyword-tags">${state.keywords.map(t=>`<span># ${esc(t)}</span>`).join('')}</div>`:''}<button data-action="preferences">调整兴趣雷达 →</button><small class="model-note">原型演示 · 来源链接与抓取结果仅作产品效果展示</small></div>`;
+  return `<div class="aside-card member"><div class="member-top">我的兴趣</div><div class="member-mark">∞</div><h3>${state.profile?esc(state.profile.identity):'最近喜欢这些'}</h3><p>兴趣越具体，聚合到的公开资讯越贴近你。</p><div class="interest-tags">${state.interests.map(t=>`<span>${esc(t)}</span>`).join('')}</div>${state.keywords.length?`<div class="keyword-tags">${state.keywords.map(t=>`<span># ${esc(t)}</span>`).join('')}</div>`:''}<button data-action="preferences">编辑兴趣 →</button><small class="model-note">原型演示 · 来源链接与抓取结果仅作产品效果展示</small></div>`;
 };
 
 nearbyPanel=function(){
   const ps=people.filter(p=>geo(p)>0).sort((a,b)=>geo(b)-geo(a));
-  return `<div class="aside-card nearby-panel"><div class="between"><h3>附近兴趣脉冲</h3><button class="text-btn" data-action="map">看看谁在关注 ${icon('arrow')}</button></div><div class="mini-map" aria-label="附近兴趣热度示意图"><span class="map-area">${esc(state.place)} · 热度示意</span>${(ps.length?ps:people.slice(0,2)).slice(0,3).map((p,i)=>`<button style="left:${18+i*26}%;top:${42+(i%2)*24}%" data-person="${p.id}" aria-label="查看${p.name}"><span class="avatar">${p.letter}</span><small>${p.category}</small></button>`).join('')}</div><p class="muted" style="font-size:11px;margin-top:10px">从公开资讯的兴趣热度出发，再发现真实同好。</p></div>`;
+  return `<div class="aside-card nearby-panel"><div class="between"><h3>身边的同好</h3><button class="text-btn" data-action="map">看看谁在关注 ${icon('arrow')}</button></div><div class="mini-map" aria-label="附近兴趣热度示意图"><span class="map-area">${esc(state.place)} · 热度示意</span>${(ps.length?ps:people.slice(0,2)).slice(0,3).map((p,i)=>`<button style="left:${18+i*26}%;top:${42+(i%2)*24}%" data-person="${p.id}" aria-label="查看${p.name}"><span class="avatar">${p.letter}</span><small>${p.category}</small></button>`).join('')}</div><p class="muted" style="font-size:11px;margin-top:10px">从公开资讯的兴趣热度出发，再发现真实同好。</p></div>`;
 };
 
 square=function(){
-  return `<section class="home-brief-row"><div class="interest-dock"><div class="interest-dock-head"><span><i class="radar-dot"></i>我的兴趣标签</span><button data-action="preferences">+ 添加 / 调整</button></div><div class="interest-quick-tags">${state.interests.map(t=>`<button data-action="preferences">${esc(t)}</button>`).join('')}${state.keywords.map(t=>`<button data-action="preferences"># ${esc(t)}</button>`).join('')}</div><small>仅展示已选择标签 · AI 正按这些标签搜索公开内容</small></div><aside class="ai-mini-card"><span>AI 兴趣雷达</span><strong>全网资讯，<br>只推你真正关心的</strong><small>${state.place} · 运行中</small></aside></section>
+  return `<section class="home-brief-row"><div class="interest-dock"><div class="interest-dock-head"><span><i class="radar-dot"></i>我的兴趣标签</span><button data-action="preferences">+ 添加 / 调整</button></div><div class="interest-quick-tags">${state.interests.map(t=>`<button data-action="preferences">${esc(t)}</button>`).join('')}${state.keywords.map(t=>`<button data-action="preferences"># ${esc(t)}</button>`).join('')}</div><small>从喜欢的事物，找到同频的人</small></div></section>
   ${v3Rankings()}
-  <div class="main-grid"><section><div class="between section-head feed-section-head"><h2>AI 为你找到的内容</h2><span class="feed-count">基于 ${state.interests.length+state.keywords.length} 个标签</span></div>${chips()}${v3SourceFilters()}<div class="feed-tools"><button class="near-toggle ${nearby?'active':''}" data-action="nearby" aria-pressed="${nearby}">${icon('pin')} ${nearby?'仅看本街区标签':'兴趣 × 地缘推荐'}</button></div><p class="sample-note"><span class="demo-dot"></span>每条内容均由 AI 根据某位用户的标签从公开来源搜索整理，并非该用户发布</p>${query?`<div class="search-result">搜索“${esc(query)}”<button data-action="clear-search">清除</button></div>`:''}<div class="feed-grid">${visibleFeed().map(card).join('')||empty('暂时没有匹配资讯','换一个来源、兴趣或关键词再试试。')}</div>${moreButton()}</section><aside>${profilePanel()}${nearbyPanel()}<div class="aside-card"><h3>兴趣相投的人</h3><p class="muted" style="margin:8px 0 12px">关注一个人的标签，持续看到 AI 围绕其兴趣找到的内容。</p>${peopleList(people.filter(p=>state.interests.includes(p.category)).slice(0,3))}</div></aside></div>`;
+  <div class="main-grid"><section><div class="between section-head feed-section-head"><h2>为你发现</h2><span class="feed-count">基于 ${state.interests.length+state.keywords.length} 个标签</span></div>${chips()}${v3SourceFilters()}<div class="feed-tools"><button class="near-toggle ${nearby?'active':''}" data-action="nearby" aria-pressed="${nearby}">${icon('pin')} ${nearby?'仅看本街区标签':'看看附近'}</button></div><p class="sample-note"><span class="demo-dot"></span>根据同好的兴趣标签，由 AI 整理公开内容</p>${query?`<div class="search-result">搜索“${esc(query)}”<button data-action="clear-search">清除</button></div>`:''}<div class="feed-grid">${visibleFeed().map(card).join('')||empty('暂时没有匹配资讯','换一个来源、兴趣或关键词再试试。')}</div>${moreButton()}</section><aside>${profilePanel()}${nearbyPanel()}<div class="aside-card"><h3>兴趣相投的人</h3><p class="muted" style="margin:8px 0 12px">关注一个人的标签，持续看到 AI 围绕其兴趣找到的内容。</p>${peopleList(people.filter(p=>state.interests.includes(p.category)).slice(0,3))}</div></aside></div>`;
 };
 
 following=function(){
@@ -215,24 +210,18 @@ showPerson=function(id){
 };
 
 interestPreview=function(){
-  const selected=interestDraft.includes(interestFocus),w=interestWorlds[interestFocus];
-  return `<div class="interest-reveal"><span class="reveal-kicker">${selected?'继续选择具体 IP':'你是否也好奇'}</span><h3>${w.question}</h3><p>${w.detail}</p></div>${v3IpWall()}<div class="interest-selection" aria-live="polite"><span>${interestDraft.length?'已选择 '+interestDraft.length+' 个垂类':'先选择一个兴趣垂类'}</span><span>${v3IpDraft.length?'已选择 '+v3IpDraft.length+' 个 IP':'可多选 IP，推荐会更准确'}</span></div><button class="interest-enter" data-action="v3-apply-interests" ${interestDraft.length?'':'disabled'}>${interestDraft.length?'用这些标签开启 AI 雷达':'先选择一个兴趣'} ${icon('arrow')}</button><small class="interest-disclosure">基础浏览不设信用分门槛 · IP 可搜索、按首字母检索并主动维护</small>`;
+  const selected=interestDraft.includes(interestFocus);
+  return `${selected?`<p class="interest-invitation">看看你身边有哪些跟你一样喜欢${esc(v3IpDraft[v3IpDraft.length-1]||interestFocus)}的同好</p>`:''}${selected?v3IpWall():''}<div class="interest-selection" aria-live="polite"><span>${interestDraft.length?'已选择 '+interestDraft.length+' 个垂类':'先选择一个兴趣垂类'}</span><span>${v3IpDraft.length?'已选择 '+v3IpDraft.length+' 个 IP':'可多选 IP，推荐会更准确'}</span></div><button class="interest-enter" data-action="v3-apply-interests" ${interestDraft.length?'':'disabled'}>${interestDraft.length?'看看同好':'先选择一个兴趣'} ${icon('arrow')}</button><small class="interest-disclosure">之后随时可以修改</small>`;
 };
 
 preferences=function(onboard=false){
   interestOnboard=onboard;interestDraft=onboard?[]:[...state.interests];interestFocus=interestDraft[0]||'潮玩';v3IpDraft=onboard?[]:[...state.keywords];v3IpQuery='';v3IpLetter='全部';
-  modal('开启你的 AI 兴趣雷达',`<div class="interest-heading"><span class="interest-overline">垂类标签 → 具体 IP</span><h2>先选领域，<br>再点亮你真正喜欢的 IP。</h2><p>每个垂类都有完整 IP 墙，也可以添加你没找到的条目。</p></div><div class="interest-constellation" role="group" aria-label="选择兴趣，可多选">${categories.map((t,i)=>`<button class="interest-orb orb-${i} ${interestDraft.includes(t)?'active':''}" data-interest="${t}" aria-pressed="${interestDraft.includes(t)}"><span class="orb-mark">${icon(interestWorlds[t].icon)}</span><strong>${t}</strong><span class="orb-hint">${interestWorlds[t].hint}</span><span class="orb-check">${icon('check')}</span></button>`).join('')}</div><label class="interest-place">${icon('pin')}<span>附近榜所在街区</span><select id="interest-place" aria-label="附近榜所在街区">${['杭州 · 滨江','杭州 · 西湖','上海 · 徐汇'].map(t=>`<option ${t===state.place?'selected':''}>${t}</option>`).join('')}</select></label><div id="interest-feedback">${interestPreview()}</div>`);
+  modal('选择兴趣',`<div class="interest-heading"><h2>你感兴趣的是哪个？</h2><p>看看你身边有哪些跟你一样喜欢这些的同好。</p></div><div class="interest-constellation" role="group" aria-label="选择兴趣，可多选">${categories.map((t,i)=>`<button class="interest-orb orb-${i} ${interestDraft.includes(t)?'active':''}" data-interest="${t}" aria-pressed="${interestDraft.includes(t)}"><span class="orb-mark">${icon(interestWorlds[t].icon)}</span><strong>${t}</strong><span class="orb-hint">${interestWorlds[t].hint}</span><span class="orb-check">${icon('check')}</span></button>`).join('')}</div><label class="interest-place">${icon('pin')}<span>附近榜所在街区</span><select id="interest-place" aria-label="附近榜所在街区">${['杭州 · 滨江','杭州 · 西湖','上海 · 徐汇'].map(t=>`<option ${t===state.place?'selected':''}>${t}</option>`).join('')}</select></label><div id="interest-feedback">${interestPreview()}</div>`);
   $('#modal').classList.add('interest-modal');
 };
 
-function v3CuriosityIntro(){
-  modal('你最想偷看附近的哪件事？',`<div class="curiosity-intro"><span class="interest-overline">先从一个好奇心开始</span><h2>如果现在能看见，<br>你最想知道哪一件？</h2><p>选一个问题，再告诉 AI 你具体喜欢什么。</p><div class="curiosity-grid"><button class="curiosity-card" data-curiosity="动漫">${icon('film')}<strong>附近的人最近都在追什么番？</strong><small>看看同街区的新番热度</small></button><button class="curiosity-card" data-curiosity="游戏">${icon('grid')}<strong>本街区谁也在玩同一款游戏？</strong><small>从作品找到同好</small></button><button class="curiosity-card" data-curiosity="潮玩">${icon('star')}<strong>周围的人都在收什么新手办？</strong><small>发现附近收藏风向</small></button><button class="curiosity-card" data-curiosity="电影">${icon('heart')}<strong>同好刚把什么内容顶上榜？</strong><small>只看同频圈层的热度</small></button></div><div class="curiosity-foot">无需信用分 · 选择后可继续细化标签</div></div>`);
-}
-
-function v3AiScan(){
-  modal('AI 正在按你的兴趣整理',`<div class="ai-scan"><div class="scan-head"><span class="radar-dot"></span><strong>模拟扫描公开资讯来源</strong></div><div class="scan-line"></div><div class="scan-sources">${v3Platforms.map(s=>`<span>${s}</span>`).join('')}</div></div><p>正在合并相同话题，并结合「${state.interests.join('、')}」${state.keywords.length?'和关键词「'+state.keywords.join('、')+'」':''}整理你的首页。</p><p class="model-note">这是产品交互原型，不会在当前页面实际抓取或保存第三方平台数据。</p>`);
-  window.setTimeout(()=>{$('#modal').close();render();toast('兴趣雷达已更新，双榜和资讯流已重新整理');},950);
-}
+function v3CuriosityIntro(){preferences(true);}
+function v3AiScan(){ $('#modal').close();render();toast('已更新你的兴趣'); }
 
 document.addEventListener('click',event=>{
   const button=event.target.closest('button');
@@ -241,6 +230,8 @@ document.addEventListener('click',event=>{
   if(data.curiosity){
     interestDraft=[data.curiosity];interestFocus=data.curiosity;$('#modal').close();preferences(true);return;
   }
+  if(data.rankedTag){v3ShowRankedTag(data.rankedTag);return;}
+  if(data.followTag){state.keywords=state.keywords.includes(data.followTag)?state.keywords.filter(t=>t!==data.followTag):[...state.keywords,data.followTag];saveState();render();v3ShowRankedTag(data.followTag);return;}
   if(data.source){state.sourceFilter=data.source;saveState();feedLimit=20;render();return;}
   if(data.rankCategory){v3RankCategory=data.rankCategory;render();return;}
   if(data.rankOpen){v3OpenRankSheet(data.rankOpen);return;}

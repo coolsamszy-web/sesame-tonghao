@@ -275,3 +275,69 @@ body[data-theme="glass"] .toast{background:#303347ef;border:1px solid #ffffff44;
  body[data-theme="glass"] .detail-attribution .person-link strong{font-size:11px}
 }
 @media(prefers-reduced-transparency:reduce){body[data-theme="glass"] :is(.sidebar,.topbar,.mobile-nav,dialog){background:#f9faff;backdrop-filter:none}}
+
+/* Quiet editorial refinement: content and tags take precedence. */
+.home-brief-row{grid-template-columns:minmax(0,1fr)!important}
+.rank-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rank-panel-head h2{min-width:0}
+.rank-expand{position:static!important;flex-shrink:0}
+.rank-expand svg{width:15px;height:15px}
+.tag-followers{white-space:nowrap;font-size:11px;color:var(--muted);font-weight:400;font-variant-numeric:tabular-nums}
+.rank-item>strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;text-align:left}
+.tag-sheet-item{grid-template-columns:30px minmax(0,1fr) auto 16px!important}
+.tag-detail-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:8px 0 24px}
+.tag-detail-head p{font-size:14px;color:var(--muted);line-height:1.7}
+.tag-detail-head button{flex-shrink:0}
+.interest-invitation{font-size:13px;line-height:1.7;color:var(--muted);margin:15px 0}
+body[data-theme="glass"]{--muted:#697080;background:#f7f8fa}
+body[data-theme="glass"] .sidebar{background:#f0f1f5;border-right:1px solid #e8eaf0;backdrop-filter:none}
+body[data-theme="glass"] .topbar{background:#f7f8faf2;border-color:#e8eaf0}
+body[data-theme="glass"] .interest-dock{background:transparent;border:0;box-shadow:none;border-radius:0;padding:2px 0 15px}
+body[data-theme="glass"] .interest-dock-head{font-size:18px;letter-spacing:-.4px}
+body[data-theme="glass"] .radar-dot{display:none}
+body[data-theme="glass"] .interest-quick-tags button{background:#fff;border:1px solid #e4e7ee;color:#41465a;padding:8px 14px}
+body[data-theme="glass"] .interest-dock>small{color:#737b8a}
+body[data-theme="glass"] .ranking-board{gap:14px;margin-bottom:25px}
+body[data-theme="glass"] .rank-panel,body[data-theme="glass"] .rank-panel.nearby-rank{background:#fff;border:1px solid #e8eaf0;box-shadow:none;border-radius:18px;padding:17px 18px}
+body[data-theme="glass"] .rank-panel h2{font-size:15px;margin:0;font-weight:600}
+body[data-theme="glass"] .rank-panel>p{color:#747c8c;margin:3px 0 10px}
+body[data-theme="glass"] .rank-expand{background:transparent;padding:5px;color:#767d8b}
+body[data-theme="glass"] .rank-item{padding:9px 0;gap:8px;border-bottom:1px solid #f1f2f6}
+body[data-theme="glass"] .rank-item:last-child{border-bottom:0}
+body[data-theme="glass"] .rank-item strong{font-size:13px}
+body[data-theme="glass"] .rank-no{font-size:12px;color:#9ba1af}
+body[data-theme="glass"] .rank-item:first-child .rank-no{color:#6664a5}
+body[data-theme="glass"] .tag-followers{color:#737b8a;font-size:11px}
+body[data-theme="glass"] .feed-card{border-radius:18px;box-shadow:none;border-color:#e8eaf0;padding:0;overflow:hidden}
+body[data-theme="glass"] .community-image{border-radius:0}
+body[data-theme="glass"] .feed-copy{padding:14px}
+body[data-theme="glass"] .sample-note{color:#737b8a;font-size:11px;margin:0 0 14px}
+body[data-theme="glass"] .aside-card{background:transparent;border:0;box-shadow:none;border-radius:0;border-bottom:1px solid #e5e7ee}
+body[data-theme="glass"] .member-mark,body[data-theme="glass"] .member h3,body[data-theme="glass"] .member>p{display:none}
+body[data-theme="glass"] .interest-heading h2{font-size:27px;letter-spacing:-1px;margin:8px 0 10px}
+body[data-theme="glass"] .interest-heading p{font-size:14px;color:#697080;line-height:1.7}
+body[data-theme="glass"] .interest-orb{box-shadow:none;background:#f5f6f9;border:1px solid #e6e8ef;border-radius:12px;padding:12px 15px}
+body[data-theme="glass"] .interest-orb.active{background:#eeedf8;border-color:#a8a5d2;color:#54518e}
+body[data-theme="glass"] .orb-hint,body[data-theme="glass"] .orb-mark{display:none}
+body[data-theme="glass"] .ip-wall{box-shadow:none;border:0;background:#f7f8fa;border-radius:16px}
+body[data-theme="glass"] .interest-place{margin:12px 0;font-size:12px}
+body[data-theme="glass"] .ip-note{display:none}
+body[data-theme="glass"] .interest-enter{border-radius:14px;box-shadow:none}
+@media(max-width:700px){
+ body[data-theme="glass"] .home-brief-row{margin-bottom:10px}
+ body[data-theme="glass"] .interest-dock{padding:4px 0 8px}
+ body[data-theme="glass"] .interest-dock-head{font-size:16px}
+ body[data-theme="glass"] .interest-quick-tags{margin:10px 0 0}
+ body[data-theme="glass"] .interest-dock>small{display:none}
+ body[data-theme="glass"] .ranking-board{gap:9px;margin-bottom:19px}
+ body[data-theme="glass"] .rank-panel{padding:12px 10px!important;border-radius:15px}
+ body[data-theme="glass"] .rank-panel h2{font-size:12px}
+ body[data-theme="glass"] .rank-panel>p{font-size:10px;margin-bottom:5px}
+ body[data-theme="glass"] .rank-item{grid-template-columns:15px minmax(0,1fr) auto;gap:4px;padding:8px 0}
+ body[data-theme="glass"] .rank-item strong{font-size:11px}
+ body[data-theme="glass"] .tag-followers{font-size:9px}
+ body[data-theme="glass"] .rank-no{font-size:10px}
+ body[data-theme="glass"] .feed-copy{padding:10px}
+ body[data-theme="glass"] .interest-heading h2{font-size:24px}
+ .tag-detail-head{align-items:flex-start}
+}
